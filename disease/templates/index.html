@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Symptom Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #eef2f7;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 60%;
+            margin: 50px auto;
+            background: #ffffff;
+            padding: 20px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .chat-window {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            background-color: #fafafa;
+        }
+        .chat-message {
+            margin: 10px 0;
+        }
+        .bot-message {
+            text-align: left;
+            color: #333;
+        }
+        .user-message {
+            text-align: right;
+            color: #007bff;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Symptom Checker</h1>
+        <div id="chatWindow" class="chat-window">
+            <div class="chat-message bot-message">
+                👩‍⚕️ Hello! Please describe your symptoms.
+            </div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" autofocus placeholder="e.g. headache,fever, ..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("userInput").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+            sendMessage();
+        }});
+        const chatWindow = document.getElementById("chatWindow");
+        function sendMessage() {
+            const inputField = document.getElementById("userInput");
+            const text = inputField.value.replace( "and",',').trim();
+            if (text === "") return;
+
+            addMessage(text, "user-message");
+            inputField.value = "";
+
+            fetch("/check-symptoms", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ symptoms: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                addMessage(`Disease and Remedies for symptoms : ${data.input}`,'bot-message');
+                if(data.prediction.length===0){addMessage("⚠️ Sorry, no matching disease found for the given symptoms.", "bot-message");
+                    return;
+                }
+                data.prediction.forEach(item => {
+                    const respo=`🩺 Disease: ${item.disease} \n 💡 Remedies: ${item.remedies}`;
+                    addTypingEffect(respo, "bot-message");
+                });
+            })
+            .catch(error => {
+                addMessage("⚠️ Sorry, something went wrong. Please try again.", "bot-message");
+                console.error(error);
+            });
+        }
+
+        function addMessage(text, className) {
+            const message = document.createElement("div");
+            message.className = `chat-message ${className}`;
+            message.innerHTML = text.replace(/\n/g,'<br>');
+            chatWindow.appendChild(message);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function addTypingEffect(text, className, speed = 40) {
+            const message = document.createElement("div");
+            message.className = `chat-message ${className}`;
+            chatWindow.appendChild(message);
+
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    message.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }
+            }
+            type();
+        }
+    </script>
+</body>
+</html>
